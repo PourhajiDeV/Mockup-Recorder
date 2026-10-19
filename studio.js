@@ -1,11 +1,13 @@
+#!/usr/bin/env node
+
 const { chromium } = require('playwright');
 const { spawnSync } = require('child_process');
 const readline = require('readline');
 const path = require('path');
 const fs = require('fs');
 
-const WORK_DIR = path.join(__dirname, '.studio_temp');
-const OUT_DIR = path.join(__dirname, 'output');
+const WORK_DIR = path.join(process.cwd(), '.studio_temp');
+const OUT_DIR = path.join(process.cwd(), 'output');
 
 const clr = {
   reset: '\x1b[0m',
@@ -13,7 +15,8 @@ const clr = {
   purple: '\x1b[38;5;141m',
   neon: '\x1b[38;5;84m',
   white: '\x1b[38;5;255m',
-  gray: '\x1b[38;5;244m'
+  gray: '\x1b[38;5;244m',
+  red: '\x1b[38;5;196m'
 };
 
 const ask = (rl, query) => new Promise((resolve) => rl.question(query, resolve));
@@ -25,12 +28,27 @@ const clearScreen = () => {
 const printUI = () => {
   clearScreen();
   console.log(`${clr.purple}────────────────────────────────────────────────────────────────────────${clr.reset}`);
-  console.log(`  ${clr.neon}●${clr.reset} ${clr.bold}${clr.purple}POURHAJIDEV </> ${clr.white}SHOWCASE STUDIO${clr.reset}               ${clr.gray}[STUDIO V4.0]${clr.reset}`);
+  console.log(`  ${clr.neon}●${clr.reset} ${clr.bold}${clr.purple}SHOWCASE STUDIO ENGINE${clr.reset}                        ${clr.gray}[ULTRA V6.0]${clr.reset}`);
   console.log(`${clr.purple}────────────────────────────────────────────────────────────────────────${clr.reset}\n`);
+};
+
+const checkFFmpeg = () => {
+  try {
+    const res = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' });
+    return res.status === 0;
+  } catch (e) {
+    return false;
+  }
 };
 
 (async () => {
   printUI();
+
+  if (!checkFFmpeg()) {
+    console.log(`  ${clr.red}✖ Error: FFmpeg is not installed or not found in system PATH.${clr.reset}`);
+    console.log(`  ${clr.gray}Please install FFmpeg and make sure it is added to your environment variables.${clr.reset}\n`);
+    process.exit(1);
+  }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -39,115 +57,67 @@ const printUI = () => {
 
   printUI();
   console.log(`  ${clr.neon}✔ Target:${clr.reset} ${clr.white}${TARGET_URL}${clr.reset}\n`);
-  const nameInput = await ask(rl, `  ${clr.purple}Project / File Name ${clr.gray}(Enter for default):${clr.reset} `);
+  const nameInput = await ask(rl, `  ${clr.purple}File Name ${clr.gray}(Enter for default):${clr.reset} `);
   const rawBaseName = nameInput.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
 
   printUI();
-  console.log(`  ${clr.neon}✔ Target:${clr.reset} ${clr.white}${TARGET_URL}${clr.reset}`);
-  console.log(`  ${clr.neon}✔ File Name:${clr.reset} ${clr.white}${rawBaseName || 'Auto-Generated'}${clr.reset}\n`);
-  console.log(`  ${clr.bold}${clr.purple}[ VIDEO DURATION ]${clr.reset}`);
-  console.log(`  ${clr.gray}Enter total duration between 10 to 30 seconds.${clr.reset}`);
-  const durInput = await ask(rl, `  ${clr.purple}Duration in seconds ${clr.gray}(Default: 15s):${clr.reset} `);
+  console.log(`  ${clr.neon}✔ Target:${clr.reset}    ${clr.white}${TARGET_URL}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ File Name:${clr.reset} ${clr.white}${rawBaseName || 'Auto'}${clr.reset}\n`);
+  const brandInput = await ask(rl, `  ${clr.purple}Bottom Brand Text ${clr.gray}(Leave empty for none):${clr.reset} `);
+  const BRAND_TEXT = brandInput.trim();
+
+  printUI();
+  console.log(`  ${clr.neon}✔ Target:${clr.reset}    ${clr.white}${TARGET_URL}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ File Name:${clr.reset} ${clr.white}${rawBaseName || 'Auto'}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ Brand:${clr.reset}     ${clr.white}${BRAND_TEXT || 'None'}${clr.reset}\n`);
+  const durInput = await ask(rl, `  ${clr.purple}Duration in seconds ${clr.gray}(Default: 15s | 10-30):${clr.reset} `);
   let parsedSec = parseInt(durInput.trim(), 10);
   if (isNaN(parsedSec) || parsedSec < 10) parsedSec = 15;
   if (parsedSec > 30) parsedSec = 30;
   const TOTAL_DURATION_SEC = parsedSec;
 
   printUI();
-  console.log(`  ${clr.neon}✔ Target:${clr.reset} ${clr.white}${TARGET_URL}${clr.reset}`);
-  console.log(`  ${clr.neon}✔ File Name:${clr.reset} ${clr.white}${rawBaseName || 'Auto-Generated'}${clr.reset}`);
-  console.log(`  ${clr.neon}✔ Duration:${clr.reset}  ${clr.white}${TOTAL_DURATION_SEC} Seconds${clr.reset}\n`);
-  console.log(`  ${clr.bold}${clr.purple}[ DEVICE VIEWPORT ]${clr.reset}`);
-  console.log(`  ${clr.neon}1${clr.reset} ─ Desktop  ${clr.gray}(MacBook Pro Frame)${clr.reset}`);
-  console.log(`  ${clr.neon}2${clr.reset} ─ Tablet   ${clr.gray}(iPad Air Pro)${clr.reset}`);
-  console.log(`  ${clr.neon}3${clr.reset} ─ Mobile   ${clr.gray}(iPhone 15 Chassis)${clr.reset}\n`);
-  const devChoice = await ask(rl, `  ${clr.purple}Select [1-3]:${clr.reset} `);
-  const devMode = devChoice.trim() || '1';
+  console.log(`  ${clr.neon}✔ Target:${clr.reset}    ${clr.white}${TARGET_URL}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ Brand:${clr.reset}     ${clr.white}${BRAND_TEXT || 'None'}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ Duration:${clr.reset}  ${clr.white}${TOTAL_DURATION_SEC}s${clr.reset}\n`);
+  console.log(`  ${clr.bold}${clr.purple}[ SHOWCASE TEMPLATE STYLE ]${clr.reset}`);
+  console.log(`  ${clr.neon}1${clr.reset} ─ Realistic MacBook Pro   ${clr.gray}(Front view, keyboard base)${clr.reset}`);
+  console.log(`  ${clr.neon}2${clr.reset} ─ 3D Dual Combo Studio    ${clr.gray}(Tilted Big MacBook + Floating iPhone beside it)${clr.reset}\n`);
+  const styleChoice = await ask(rl, `  ${clr.purple}Select Style [1-2]:${clr.reset} `);
+  const styleMode = styleChoice.trim() === '2' ? 'combo3d' : 'macbook';
 
   printUI();
-  console.log(`  ${clr.neon}✔ Target:${clr.reset} ${clr.white}${TARGET_URL}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ Target:${clr.reset}    ${clr.white}${TARGET_URL}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ Brand:${clr.reset}     ${clr.white}${BRAND_TEXT || 'None'}${clr.reset}`);
   console.log(`  ${clr.neon}✔ Duration:${clr.reset}  ${clr.white}${TOTAL_DURATION_SEC}s${clr.reset}`);
-  console.log(`  ${clr.neon}✔ Device:${clr.reset} ${clr.white}Option ${devMode}${clr.reset}\n`);
+  console.log(`  ${clr.neon}✔ Style:${clr.reset}     ${clr.white}${styleMode.toUpperCase()}${clr.reset}\n`);
   console.log(`  ${clr.bold}${clr.purple}[ OUTPUT ASPECT RATIO ]${clr.reset}`);
-  console.log(`  ${clr.neon}1${clr.reset} ─ 16:9 Landscape  ${clr.gray}(YouTube, Web, Monitor)${clr.reset}`);
-  console.log(`  ${clr.neon}2${clr.reset} ─ 9:16 Vertical   ${clr.gray}(Instagram Story, Reels, Shorts)${clr.reset}`);
-  console.log(`  ${clr.neon}3${clr.reset} ─ 3:4  Portrait   ${clr.gray}(Instagram Feed, Dribbble)${clr.reset}`);
-  console.log(`  ${clr.neon}4${clr.reset} ─ 1:1  Square     ${clr.gray}(LinkedIn, Carousel, X)${clr.reset}\n`);
-  const ratioChoice = await ask(rl, `  ${clr.purple}Select [1-4]:${clr.reset} `);
+  console.log(`  ${clr.neon}1${clr.reset} ─ 9:16 Vertical   ${clr.gray}(Instagram Story, Reels, Shorts)${clr.reset}`);
+  console.log(`  ${clr.neon}2${clr.reset} ─ 16:9 Landscape  ${clr.gray}(YouTube, Web, Desktop)${clr.reset}`);
+  console.log(`  ${clr.neon}3${clr.reset} ─ 3:4  Portrait   ${clr.gray}(Instagram Feed Post)${clr.reset}\n`);
+  const ratioChoice = await ask(rl, `  ${clr.purple}Select Ratio [1-3]:${clr.reset} `);
   const rMode = ratioChoice.trim() || '1';
 
+  let stageW = 1080, stageH = 1920, ratioLabel = '9x16_Vertical';
+  if (rMode === '2') { stageW = 1920; stageH = 1080; ratioLabel = '16x9_Landscape'; }
+  else if (rMode === '3') { stageW = 1080; stageH = 1440; ratioLabel = '3x4_Portrait'; }
+
   printUI();
-  console.log(`  ${clr.neon}✔ Target:${clr.reset} ${clr.white}${TARGET_URL}${clr.reset}`);
-  console.log(`  ${clr.neon}✔ Duration:${clr.reset}  ${clr.white}${TOTAL_DURATION_SEC}s${clr.reset}`);
-  console.log(`  ${clr.neon}✔ Device:${clr.reset} ${clr.white}Option ${devMode}${clr.reset}`);
-  console.log(`  ${clr.neon}✔ Ratio:${clr.reset}  ${clr.white}Option ${rMode}${clr.reset}\n`);
-  console.log(`  ${clr.bold}${clr.purple}[ OUTPUT FILE SIZE & QUALITY ]${clr.reset}`);
-  console.log(`  ${clr.neon}1${clr.reset} ─ Maximum Quality  ${clr.gray}(Ultra 4K/60fps Master - High Bitrate)${clr.reset}`);
-  console.log(`  ${clr.neon}2${clr.reset} ─ Optimized / Low  ${clr.gray}(Compressed - Fast Send for Telegram/Instagram)${clr.reset}\n`);
-  const qualChoice = await ask(rl, `  ${clr.purple}Select [1-2]:${clr.reset} `);
+  console.log(`  ${clr.neon}✔ Target:${clr.reset}    ${clr.white}${TARGET_URL}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ Brand:${clr.reset}     ${clr.white}${BRAND_TEXT || 'None'}${clr.reset}`);
+  console.log(`  ${clr.neon}✔ Settings:${clr.reset}  ${styleMode.toUpperCase()} | ${ratioLabel} | ${TOTAL_DURATION_SEC}s\n`);
+  console.log(`  ${clr.bold}${clr.purple}[ OUTPUT QUALITY & FILE SIZE ]${clr.reset}`);
+  console.log(`  ${clr.neon}1${clr.reset} ─ Ultra 4K Quality ${clr.gray}(Master Bitrate - CRF 16)${clr.reset}`);
+  console.log(`  ${clr.neon}2${clr.reset} ─ Lightweight      ${clr.gray}(Compressed for Telegram/Instagram - CRF 26)${clr.reset}\n`);
+  const qualChoice = await ask(rl, `  ${clr.purple}Select Quality [1-2]:${clr.reset} `);
   rl.close();
 
-  const isLowSize = qualChoice.trim() === '2';
-  const crfValue = isLowSize ? '26' : '16';
-  const presetSpeed = isLowSize ? 'fast' : 'slow';
-
-  let device;
-  if (devMode === '3' || devMode.toLowerCase() === 'mobile') {
-    device = {
-      type: 'mobile',
-      rawW: 414, rawH: 896,
-      rigW: 446, rigH: 940,
-      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-      isMobile: true
-    };
-  } else if (devMode === '2' || devMode.toLowerCase() === 'tablet') {
-    device = {
-      type: 'tablet',
-      rawW: 1024, rawH: 768,
-      rigW: 1090, rigH: 846,
-      userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-      isMobile: true
-    };
-  } else {
-    device = {
-      type: 'desktop',
-      rawW: 1680, rawH: 945,
-      rigW: 1740, rigH: 1015,
-      userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      isMobile: false
-    };
-  }
-
-  let stageDim;
-  if (rMode === '2') {
-    stageDim = { label: '9x16_Vertical', w: 1080, h: 1920, isVerticalStory: true };
-  } else if (rMode === '3') {
-    stageDim = { label: '3x4_Portrait', w: 1080, h: 1440, isVerticalStory: false };
-  } else if (rMode === '4') {
-    stageDim = { label: '1x1_Square', w: 1080, h: 1080, isVerticalStory: false };
-  } else {
-    stageDim = { label: '16x9_Landscape', w: 1920, h: 1080, isVerticalStory: false };
-  }
-
-  let baseScale, zoomAmp, animPreset;
-  if (stageDim.isVerticalStory && device.type === 'desktop') {
-    baseScale = 0.58;
-    zoomAmp = 0.03;
-    animPreset = 'desktop_vertical_fit';
-  } else if (stageDim.isVerticalStory && device.type === 'mobile') {
-    baseScale = 1.62;
-    zoomAmp = 0.05;
-    animPreset = 'mobile_vertical';
-  } else {
-    const fit = Math.min((stageDim.w * 0.90) / device.rigW, (stageDim.h * 0.90) / device.rigH);
-    baseScale = Number(fit.toFixed(3));
-    zoomAmp = Number((baseScale * 0.045).toFixed(3));
-    animPreset = 'standard';
-  }
+  const isLow = qualChoice.trim() === '2';
+  const crfValue = isLow ? '26' : '16';
+  const presetSpeed = isLow ? 'fast' : 'slow';
 
   printUI();
-  console.log(`  ${clr.neon}⚙ Mode:${clr.reset} ${device.type.toUpperCase()} ➔ ${stageDim.label} (${TOTAL_DURATION_SEC}s)`);
-  console.log(`  ${clr.purple}⠋ Initializing Chromium engine...${clr.reset}\n`);
+  console.log(`  ${clr.neon}🚀 Starting recording pipeline...${clr.reset}\n`);
 
   if (fs.existsSync(WORK_DIR)) fs.rmSync(WORK_DIR, { recursive: true, force: true });
   fs.mkdirSync(WORK_DIR, { recursive: true });
@@ -155,128 +125,144 @@ const printUI = () => {
 
   const browser = await chromium.launch({
     headless: true,
-    args: [
-      '--enable-gpu',
-      '--use-gl=angle',
-      '--enable-webgl',
-      '--ignore-gpu-blocklist',
-      '--disable-web-security',
-      '--allow-file-access-from-files',
-      '--no-sandbox'
-    ]
+    args: ['--enable-gpu', '--use-gl=angle', '--enable-webgl', '--no-sandbox']
   });
 
-  const rawContext = await browser.newContext({
-    viewport: { width: device.rawW, height: device.rawH },
-    userAgent: device.userAgent,
-    isMobile: device.isMobile,
-    hasTouch: device.isMobile,
-    deviceScaleFactor: 1,
-    recordVideo: { dir: WORK_DIR, size: { width: device.rawW, height: device.rawH } }
-  });
-
-  const page = await rawContext.newPage();
-  await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
-
-  await page.addStyleTag({
-    content: `
-      ::-webkit-scrollbar { display: none !important; }
-      * { scrollbar-width: none !important; }
-      #pro-cursor {
-        position: fixed;
-        top: 0; left: 0;
-        width: 28px; height: 28px;
-        pointer-events: none;
-        z-index: 2147483647;
-        transform: translate(-4px, -4px);
-        filter: drop-shadow(0 6px 14px rgba(0,0,0,0.45));
-      }
-    `
-  });
-
-  console.log(`  ${clr.neon}⠋ Recording continuous fluid scroll (${TOTAL_DURATION_SEC}s)...${clr.reset}`);
-
-  await page.evaluate(async ({ vw, vh, isMob, totalSec }) => {
-    const cursor = document.createElement('div');
-    cursor.id = 'pro-cursor';
-    if (isMob) {
-      cursor.innerHTML = '<div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.35);border:2px solid rgba(168,85,247,0.95);box-shadow:0 0 16px rgba(16,185,129,0.85);"></div>';
-    } else {
-      cursor.innerHTML = '<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 4L26 15.5L16.5 18L12 27L7 4Z" fill="#0f172a" stroke="#10b981" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+  const recordSite = async (vw, vh, isMob, outFile) => {
+    const ctx = await browser.newContext({
+      viewport: { width: vw, height: vh },
+      isMobile: isMob,
+      hasTouch: isMob,
+      deviceScaleFactor: 1,
+      recordVideo: { dir: WORK_DIR, size: { width: vw, height: vh } }
+    });
+    const p = await ctx.newPage();
+    try {
+      await p.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 60000 });
+    } catch (err) {
+      await ctx.close();
+      await browser.close();
+      if (fs.existsSync(WORK_DIR)) fs.rmSync(WORK_DIR, { recursive: true, force: true });
+      printUI();
+      console.log(`  ${clr.red}✖ Failed to load URL: ${TARGET_URL}${clr.reset}`);
+      console.log(`  ${clr.gray}Details: ${err.message}${clr.reset}\n`);
+      process.exit(1);
     }
-    document.body.appendChild(cursor);
 
-    let cx = vw / 2, cy = vh / 2;
-    const setPos = (x, y) => {
-      cx = x; cy = y;
-      cursor.style.left = x + 'px';
-      cursor.style.top = y + 'px';
-    };
-    setPos(cx, cy);
+    await p.addStyleTag({
+      content: `::-webkit-scrollbar{display:none!important;}*{scrollbar-width:none!important;}`
+    });
 
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    await p.evaluate(async (totalSec) => {
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+      await sleep(1500);
 
-    const totalMs = totalSec * 1000;
-    const headerPauseMs = 1500;
-    const footerPauseMs = 1500;
-    const scrollDuration = Math.max(2000, totalMs - headerPauseMs - footerPauseMs);
-
-    await sleep(headerPauseMs);
-
-    const getMaxScroll = () => {
-      return Math.max(
+      const getMaxY = () => Math.max(
         document.body.scrollHeight,
         document.documentElement.scrollHeight,
         document.body.offsetHeight,
-        document.documentElement.offsetHeight,
-        document.body.clientHeight,
-        document.documentElement.clientHeight
+        document.documentElement.offsetHeight
       ) - window.innerHeight;
-    };
 
-    const targetMaxY = Math.max(0, getMaxScroll());
+      const targetY = Math.max(0, getMaxY());
+      const scrollMs = Math.max(2000, (totalSec - 3) * 1000);
 
-    function easeInOutCubic(t) {
-      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    }
+      function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
 
-    if (targetMaxY > 0) {
-      await new Promise(resolve => {
-        const start = performance.now();
-        function frame(now) {
-          const p = Math.min((now - start) / scrollDuration, 1);
-          const ep = easeInOutCubic(p);
-          const currentY = targetMaxY * ep;
-          window.scrollTo(0, currentY);
-
-          const curX = vw / 2 + Math.sin(p * Math.PI * 4) * (vw * 0.15);
-          const curY = vh / 2 + Math.cos(p * Math.PI * 2) * (vh * 0.12);
-          setPos(curX, curY);
-
-          if (p < 1) {
-            requestAnimationFrame(frame);
-          } else {
-            resolve();
+      if (targetY > 0) {
+        await new Promise(resolve => {
+          const start = performance.now();
+          function frame(now) {
+            const p = Math.min((now - start) / scrollMs, 1);
+            window.scrollTo(0, targetY * easeInOutCubic(p));
+            if (p < 1) requestAnimationFrame(frame);
+            else resolve();
           }
-        }
-        requestAnimationFrame(frame);
-      });
-    }
+          requestAnimationFrame(frame);
+        });
+      }
+      await sleep(1500);
+    }, TOTAL_DURATION_SEC);
 
-    await sleep(footerPauseMs);
-  }, { vw: device.rawW, vh: device.rawH, isMob: device.isMobile, totalSec: TOTAL_DURATION_SEC });
+    const vid = p.video();
+    await ctx.close();
+    const pth = await vid.path();
+    fs.renameSync(pth, outFile);
+  };
 
-  const rawVideo = page.video();
-  await rawContext.close();
-  const rawVideoPath = await rawVideo.path();
-  const safeRawPath = path.join(WORK_DIR, 'raw.webm');
-  fs.renameSync(rawVideoPath, safeRawPath);
+  console.log(`  ${clr.purple}⠋ Recording Desktop viewport...${clr.reset}`);
+  const desktopWebm = path.join(WORK_DIR, 'desktop.webm');
+  await recordSite(1680, 1050, false, desktopWebm);
 
-  console.log(`  ${clr.purple}⠋ Synthesizing stage layout...${clr.reset}`);
+  let mobileWebm = null;
+  if (styleMode === 'combo3d') {
+    console.log(`  ${clr.purple}⠋ Recording Mobile viewport...${clr.reset}`);
+    mobileWebm = path.join(WORK_DIR, 'mobile.webm');
+    await recordSite(430, 932, true, mobileWebm);
+  }
+
+  console.log(`  ${clr.neon}⠋ Assembling 3D Studio Stage...${clr.reset}`);
+
+  let stageInnerHtml = '';
+  const comboScale = stageH === 1920 ? 1.0 : (stageH === 1440 ? 0.88 : 0.82);
+  const brandSection = BRAND_TEXT ? `
+      <div class="bottom-brand">
+        <div class="brand-text">${BRAND_TEXT}</div>
+      </div>
+  ` : '';
+
+  if (styleMode === 'macbook') {
+    const mbScale = stageH === 1920 ? 1.02 : (stageH === 1440 ? 0.96 : 0.88);
+    stageInnerHtml = `
+      <div class="macbook-wrap" style="transform: scale(${mbScale});">
+        <div class="macbook-screen">
+          <div class="camera-notch"><div class="lens"></div></div>
+          <div class="screen-glass">
+            <video id="vid1" src="desktop.webm" muted playsinline></video>
+          </div>
+        </div>
+        <div class="macbook-base">
+          <div class="opening-notch"></div>
+        </div>
+        <div class="macbook-bottom-lip"></div>
+      </div>
+      ${brandSection}
+    `;
+  } else {
+    stageInnerHtml = `
+      <div class="combo-stage" style="transform: scale(${comboScale});">
+        <div class="laptop-3d" id="laptop3d">
+          <div class="mb-lid">
+            <div class="camera-notch"><div class="lens"></div></div>
+            <div class="mb-display">
+              <video id="vid1" src="desktop.webm" muted playsinline></video>
+              <div class="glass-shine"></div>
+            </div>
+          </div>
+          <div class="mb-chassis">
+            <div class="mb-groove"></div>
+          </div>
+          <div class="mb-shadow"></div>
+        </div>
+
+        <div class="iphone-3d" id="iphone3d">
+          <div class="iphone-bezel">
+            <div class="dynamic-island"></div>
+            <div class="iphone-display">
+              <video id="vid2" src="mobile.webm" muted playsinline></video>
+              <div class="glass-shine"></div>
+            </div>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+      ${brandSection}
+    `;
+  }
 
   const stageHtmlPath = path.join(WORK_DIR, 'stage.html');
-  const isPhone = device.type === 'mobile';
-
   const stageHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -284,226 +270,256 @@ const printUI = () => {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: ${stageDim.w}px; height: ${stageDim.h}px;
+    width: ${stageW}px; height: ${stageH}px;
     overflow: hidden;
-    background: #040508;
-    display: flex; align-items: center; justify-content: center;
-    perspective: 2500px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    background: radial-gradient(circle at 50% 35%, #2e0f54 0%, #100521 55%, #040108 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, sans-serif;
+    position: relative;
+    perspective: 2600px;
   }
-  .ambient {
-    position: absolute; inset: -20%;
-    background:
-      radial-gradient(circle at 20% 25%, rgba(168, 85, 247, 0.48) 0%, transparent 45%),
-      radial-gradient(circle at 80% 75%, rgba(16, 185, 129, 0.38) 0%, transparent 45%),
-      radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.28) 0%, transparent 55%);
-    filter: blur(85px);
-    animation: bgShift 9s ease-in-out infinite alternate;
-    z-index: 0;
-  }
-  .grid-overlay {
+  .bg-glow {
     position: absolute; inset: 0;
-    background-image: linear-gradient(rgba(16, 185, 129, 0.035) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(168, 85, 247, 0.035) 1px, transparent 1px);
-    background-size: 54px 54px;
-    mask-image: radial-gradient(circle at center, black 50%, transparent 92%);
-    -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 92%);
+    background:
+      radial-gradient(circle at 35% 35%, rgba(168, 85, 247, 0.5) 0%, transparent 55%),
+      radial-gradient(circle at 75% 65%, rgba(16, 185, 129, 0.35) 0%, transparent 50%);
+    filter: blur(90px);
+    pointer-events: none;
     z-index: 1;
   }
-  @keyframes bgShift {
-    0% { transform: scale(1) rotate(0deg); }
-    100% { transform: scale(1.12) rotate(4deg); }
+  .grid-floor {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(circle at center, black 40%, transparent 88%);
+    -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 88%);
+    z-index: 2;
   }
-  .rig {
+  .macbook-wrap {
+    z-index: 10;
+    display: flex; flex-direction: column; align-items: center;
+    filter: drop-shadow(0 45px 75px rgba(0,0,0,0.95)) drop-shadow(0 15px 35px rgba(168,85,247,0.3));
+  }
+  .macbook-screen {
+    width: 980px; height: 612px;
+    background: #000000;
+    border-radius: 20px 20px 0 0;
+    padding: 18px 18px 24px 18px;
+    border: 3px solid #374151;
     position: relative;
-    width: ${device.rigW}px;
-    height: ${device.rigH}px;
-    transform-style: preserve-3d;
-    z-index: 5;
-    will-change: transform;
   }
-  .external-brand-pill {
-    position: absolute;
-    top: -55px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(8, 10, 18, 0.85);
-    border: 1px solid rgba(168, 85, 247, 0.55);
-    color: #f8fafc;
-    font-size: 14px; font-weight: 700; letter-spacing: 0.8px;
-    padding: 6px 28px; border-radius: 999px;
-    display: flex; align-items: center; gap: 8px;
-    box-shadow: 0 0 25px rgba(168, 85, 247, 0.35);
-    white-space: nowrap;
-    z-index: 20;
+  .camera-notch {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 60px; height: 5px;
+    display: flex; align-items: center; justify-content: center; z-index: 5;
   }
-  .external-brand-pill span.code {
-    color: #10b981;
-    font-weight: 800;
-    text-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
-  }
-  .external-brand-pill::before {
-    content: ""; display: inline-block;
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #10b981; box-shadow: 0 0 12px #10b981;
-  }
-  .device-frame {
+  .lens { width: 6px; height: 6px; border-radius: 50%; background: #1e293b; box-shadow: 0 0 3px #38bdf8; }
+  .screen-glass {
     width: 100%; height: 100%;
-    background: rgba(12, 14, 22, 0.94);
-    border-radius: ${isPhone ? '46px' : '20px'};
-    border: ${isPhone ? '8px solid #232738' : '1.5px solid rgba(168, 85, 247, 0.26)'};
-    box-shadow:
-      0 45px 90px -15px rgba(0, 0, 0, 0.95),
-      0 25px 60px -20px rgba(168, 85, 247, 0.38),
-      0 15px 40px -20px rgba(16, 185, 129, 0.28),
-      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    border-radius: 6px;
     overflow: hidden;
-    display: flex; flex-direction: column;
+    background: #0b0f19;
+  }
+  .screen-glass video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .macbook-base {
+    width: 1030px; height: 18px;
+    background: linear-gradient(180deg, #9ca3af 0%, #4b5563 40%, #1f2937 100%);
+    border-radius: 0 0 10px 10px;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+  .opening-notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 140px; height: 7px;
+    background: #111827;
+    border-radius: 0 0 7px 7px;
+  }
+  .macbook-bottom-lip {
+    width: 1050px; height: 4px;
+    background: #111827;
+    border-radius: 0 0 12px 12px;
+  }
+  .combo-stage {
+    position: relative;
+    width: 1080px; height: 1200px;
+    display: flex; align-items: center; justify-content: center;
+    transform-style: preserve-3d;
+    z-index: 10;
+  }
+  .laptop-3d {
+    position: absolute;
+    left: -140px;
+    top: 130px;
+    width: 1120px;
+    transform-style: preserve-3d;
+    transform: perspective(2200px) rotateY(22deg) rotateX(6deg) rotateZ(-4deg);
+    filter: drop-shadow(-30px 50px 70px rgba(0,0,0,0.95)) drop-shadow(0 0 45px rgba(168,85,247,0.35));
+    will-change: transform;
+    z-index: 12;
+  }
+  .mb-lid {
+    width: 1080px; height: 675px;
+    background: #090b10;
+    border-radius: 26px 26px 0 0;
+    padding: 20px 20px 26px 20px;
+    border: 3.5px solid #475569;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
     position: relative;
   }
-  .topbar {
-    height: ${isPhone ? '0px' : '46px'};
-    background: linear-gradient(180deg, #1b1e2c 0%, #10121c 100%);
-    border-bottom: ${isPhone ? 'none' : '1px solid rgba(168, 85, 247, 0.16)'};
-    display: ${isPhone ? 'none' : 'flex'};
-    align-items: center;
-    padding: 0 22px;
+  .mb-display {
+    width: 100%; height: 100%;
+    border-radius: 8px;
+    overflow: hidden;
     position: relative;
-    flex-shrink: 0;
+    background: #0f172a;
   }
-  .dots { display: flex; gap: 9px; }
-  .dot { width: 13px; height: 13px; border-radius: 50%; }
-  .dot.r { background: #ff5f56; box-shadow: 0 0 8px rgba(255,95,86,0.4); }
-  .dot.y { background: #ffbd2e; box-shadow: 0 0 8px rgba(255,189,46,0.4); }
-  .dot.g { background: #27c93f; box-shadow: 0 0 8px rgba(39,201,63,0.4); }
-  .viewport {
-    width: 100%;
-    flex: 1;
-    position: relative; overflow: hidden;
-    background: #090a10;
-  }
-  video {
+  .mb-display video {
     width: 100%; height: 100%;
     object-fit: cover; display: block;
   }
-  .glare {
-    position: absolute; inset: -100%;
-    background: linear-gradient(115deg, transparent 43%, rgba(255,255,255,0.06) 48%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.06) 52%, transparent 57%);
-    pointer-events: none; z-index: 10;
+  .mb-chassis {
+    width: 1140px; height: 24px;
+    margin-left: -30px;
+    background: linear-gradient(90deg, #64748b 0%, #cbd5e1 25%, #94a3b8 50%, #334155 100%);
+    border-radius: 0 0 16px 16px;
+    position: relative;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.9), inset 0 2px 3px rgba(255,255,255,0.6);
+  }
+  .mb-groove {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 160px; height: 8px;
+    background: #1e293b;
+    border-radius: 0 0 8px 8px;
+  }
+  .iphone-3d {
+    position: absolute;
+    right: 45px;
+    bottom: 95px;
+    width: 390px; height: 810px;
+    transform-style: preserve-3d;
+    transform: perspective(2200px) rotateY(-18deg) rotateX(5deg) rotateZ(3deg) translateZ(120px);
+    filter: drop-shadow(-35px 45px 65px rgba(0,0,0,0.98)) drop-shadow(0 0 40px rgba(16,185,129,0.4));
     will-change: transform;
+    z-index: 25;
+  }
+  .iphone-bezel {
+    width: 100%; height: 100%;
+    background: #090a0f;
+    border-radius: 56px;
+    padding: 13px;
+    border: 5px solid #64748b;
+    box-shadow:
+      inset 0 0 0 2px #000000,
+      inset 0 0 12px rgba(255,255,255,0.25),
+      8px 0 0 #334155;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .dynamic-island {
+    position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+    width: 106px; height: 28px;
+    background: #000000;
+    border-radius: 20px;
+    z-index: 30;
+    box-shadow: inset 0 0 4px rgba(255,255,255,0.15);
+  }
+  .dynamic-island::after {
+    content: "";
+    position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle, #38bdf8 0%, #0f172a 70%);
+  }
+  .iphone-display {
+    width: 100%; height: 100%;
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    background: #0f172a;
+  }
+  .iphone-display video {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  .home-indicator {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 5px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    z-index: 30;
+  }
+  .glass-shine {
+    position: absolute; inset: 0;
+    background: linear-gradient(125deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 35%, transparent 45%);
+    pointer-events: none;
+    z-index: 20;
+  }
+  .bottom-brand {
+    position: absolute;
+    bottom: 75px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex; align-items: center; justify-content: center;
+    filter: drop-shadow(0 0 22px rgba(168, 85, 247, 0.8));
+  }
+  .brand-text {
+    color: #ffffff;
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: 3.5px;
+    white-space: nowrap;
   }
 </style>
 </head>
 <body>
-  <div class="ambient"></div>
-  <div class="grid-overlay"></div>
-  <div class="rig" id="rig">
-    <div class="external-brand-pill">PourhajiDeV <span class="code">&lt;/&gt;</span></div>
-    <div class="device-frame">
-      <div class="topbar">
-        <div class="dots">
-          <div class="dot r"></div>
-          <div class="dot y"></div>
-          <div class="dot g"></div>
-        </div>
-      </div>
-      <div class="viewport">
-        <video id="vid" src="raw.webm" muted playsinline></video>
-      </div>
-      <div class="glare" id="glare"></div>
-    </div>
-  </div>
+  <div class="bg-glow"></div>
+  <div class="grid-floor"></div>
+  ${stageInnerHtml}
   <script>
-    const vid = document.getElementById('vid');
-    const rig = document.getElementById('rig');
-    const glare = document.getElementById('glare');
+    const v1 = document.getElementById('vid1');
+    const v2 = document.getElementById('vid2');
+    const laptop = document.getElementById('laptop3d');
+    const iphone = document.getElementById('iphone3d');
     window.__done = false;
 
-    const PRESET = "${animPreset}";
-    const BASE_SCALE = ${baseScale};
-    const ZOOM_AMP = ${zoomAmp};
-
-    const easeOutBack = (t) => {
-      const c1 = 1.70158; const c3 = c1 + 1;
-      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-    };
-    const easeInOutSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
-
-    vid.addEventListener('loadedmetadata', () => {
-      const dur = vid.duration || 10;
-      vid.play();
-
-      function render() {
-        const t = vid.currentTime;
-        const p = Math.min(t / dur, 1);
-
-        let scale, rx, ry, rz, tx, ty;
-
-        if (PRESET === 'desktop_vertical_fit') {
-          if (p < 0.15) {
-            const ip = easeOutBack(p / 0.15);
-            scale = (BASE_SCALE * 0.90) + (BASE_SCALE * 0.10) * ip;
-            rx = 8 * (1 - ip) + 2 * ip;
-            ry = -9 * (1 - ip) - 3 * ip;
-            rz = -2 * (1 - ip);
-            tx = -15 * (1 - ip);
-            ty = 20 * (1 - ip);
-          } else if (p < 0.85) {
-            const mp = (p - 0.15) / 0.70;
-            scale = BASE_SCALE + Math.sin(mp * Math.PI * 2) * ZOOM_AMP;
-            rx = 2.5 + Math.cos(mp * Math.PI * 2) * 1.5;
-            ry = -3 + Math.sin(mp * Math.PI * 2) * 3;
-            rz = Math.sin(mp * Math.PI) * 1;
-            tx = Math.sin(mp * Math.PI * 2) * 10;
-            ty = Math.cos(mp * Math.PI * 2) * 8;
-          } else {
-            const op = easeInOutSine((p - 0.85) / 0.15);
-            scale = BASE_SCALE * (1 - op) + (BASE_SCALE * 0.98) * op;
-            rx = 2.5 * (1 - op);
-            ry = -3 * (1 - op);
-            rz = 0;
-            tx = 0; ty = 0;
-          }
-        } else {
-          if (p < 0.13) {
-            const ip = easeOutBack(p / 0.13);
-            scale = (BASE_SCALE * 0.84) + (BASE_SCALE * 0.16) * ip;
-            rx = 16 * (1 - ip) + 4 * ip;
-            ry = -15 * (1 - ip) - 6 * ip;
-            rz = -3 * (1 - ip) + 1 * ip;
-            tx = -35 * (1 - ip);
-            ty = 45 * (1 - ip);
-          } else if (p < 0.87) {
-            const mp = (p - 0.13) / 0.74;
-            scale = BASE_SCALE + Math.sin(mp * Math.PI * 2) * ZOOM_AMP;
-            rx = 4 * Math.cos(mp * Math.PI * 2) + 1.5;
-            ry = -6 * Math.cos(mp * Math.PI * 3) * 3;
-            rz = 1 * Math.cos(mp * Math.PI * 2);
-            tx = Math.sin(mp * Math.PI * 2) * 18;
-            ty = Math.cos(mp * Math.PI * 2) * 12;
-          } else {
-            const op = easeInOutSine((p - 0.87) / 0.13);
-            scale = BASE_SCALE * (1 - op) + (BASE_SCALE * 0.97) * op;
-            rx = 5.5 * (1 - op);
-            ry = 6 * (1 - op);
-            rz = 1 * (1 - op);
-            tx = 0; ty = 0;
-          }
-        }
-
-        rig.style.transform = "translate3d(" + tx + "px, " + ty + "px, 0px) scale(" + scale + ") rotateX(" + rx + "deg) rotateY(" + ry + "deg) rotateZ(" + rz + "deg)";
-        glare.style.transform = "translateX(" + ((p - 0.5) * 85) + "%) rotate(" + (ry * 0.7) + "deg)";
-
-        if (!vid.ended && p < 1) {
-          requestAnimationFrame(render);
-        } else {
-          setTimeout(() => { window.__done = true; }, 350);
-        }
+    let v1Ready = false, v2Ready = !v2;
+    function checkStart() {
+      if (v1Ready && v2Ready) {
+        v1.play();
+        if (v2) v2.play();
+        if (laptop && iphone) requestAnimationFrame(animateCombo);
       }
-      requestAnimationFrame(render);
-    });
+    }
 
-    vid.addEventListener('ended', () => {
-      setTimeout(() => { window.__done = true; }, 350);
+    function animateCombo() {
+      const t = v1.currentTime || 0;
+      const dur = v1.duration || 15;
+      const p = Math.min(t / dur, 1);
+
+      const lapRy = 22 + Math.sin(p * Math.PI * 2) * 3;
+      const lapRx = 6 + Math.cos(p * Math.PI * 2) * 2;
+      const lapY = Math.sin(p * Math.PI * 2) * -14;
+      laptop.style.transform = \`perspective(2200px) translateY(\${lapY}px) rotateY(\${lapRy}deg) rotateX(\${lapRx}deg) rotateZ(-4deg)\`;
+
+      const phRy = -18 + Math.cos(p * Math.PI * 2) * 3.5;
+      const phRx = 5 + Math.sin(p * Math.PI * 2) * 2;
+      const phY = Math.cos(p * Math.PI * 2) * 16;
+      iphone.style.transform = \`perspective(2200px) translateY(\${phY}px) rotateY(\${phRy}deg) rotateX(\${phRx}deg) rotateZ(3deg) translateZ(120px)\`;
+
+      if (!v1.ended && p < 1) {
+        requestAnimationFrame(animateCombo);
+      }
+    }
+
+    v1.addEventListener('canplaythrough', () => { v1Ready = true; checkStart(); }, { once: true });
+    if (v2) {
+      v2.addEventListener('canplaythrough', () => { v2Ready = true; checkStart(); }, { once: true });
+    }
+
+    v1.addEventListener('ended', () => {
+      setTimeout(() => { window.__done = true; }, 500);
     });
   </script>
 </body>
@@ -515,25 +531,25 @@ const printUI = () => {
   fs.mkdirSync(stageDir, { recursive: true });
 
   const stageContext = await browser.newContext({
-    viewport: { width: stageDim.w, height: stageDim.h },
+    viewport: { width: stageW, height: stageH },
     deviceScaleFactor: 1,
-    recordVideo: { dir: stageDir, size: { width: stageDim.w, height: stageDim.h } }
+    recordVideo: { dir: stageDir, size: { width: stageW, height: stageH } }
   });
 
   const stagePage = await stageContext.newPage();
   stagePage.setDefaultTimeout(300000);
-
   await stagePage.goto(`file://${stageHtmlPath}`);
 
-  const dynamicTimeout = Math.max(120000, (TOTAL_DURATION_SEC + 30) * 1000);
-  await stagePage.waitForFunction(() => window.__done === true, null, { timeout: dynamicTimeout });
+  console.log(`  ${clr.purple}⠋ Rendering cinematic stage output...${clr.reset}`);
+  const maxWait = Math.max(120000, (TOTAL_DURATION_SEC + 40) * 1000);
+  await stagePage.waitForFunction(() => window.__done === true, null, { timeout: maxWait });
 
   const stageVideo = stagePage.video();
   await stageContext.close();
   await browser.close();
 
   const stageVideoPath = await stageVideo.path();
-  const filePrefix = rawBaseName ? rawBaseName : `PourhajiDeV_${device.type}_${stageDim.label}`;
+  const filePrefix = rawBaseName ? rawBaseName : `Showcase_${styleMode}_${ratioLabel}`;
   const finalOutput = path.join(OUT_DIR, `${filePrefix}_${Date.now()}.mp4`);
 
   console.log(`  ${clr.neon}⠋ Encoding 60fps MP4 (CRF: ${crfValue}, Preset: ${presetSpeed})...${clr.reset}`);
@@ -541,7 +557,7 @@ const printUI = () => {
   spawnSync('ffmpeg', [
     '-y',
     '-i', stageVideoPath,
-    '-vf', 'fps=60,eq=contrast=1.04:saturation=1.08',
+    '-vf', 'fps=60,eq=contrast=1.03:saturation=1.06',
     '-c:v', 'libx264',
     '-preset', presetSpeed,
     '-crf', crfValue,

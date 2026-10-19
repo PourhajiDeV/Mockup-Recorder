@@ -1,14 +1,30 @@
 {
   "name": "web-recorder",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Automated cinematic website recording and 3D device showcase generator",
+  "main": "studio.js",
+  "bin": {
+    "web-record": "./studio.js"
   },
-  "keywords": [],
-  "type": "commonjs",
+  "scripts": {
+    "start": "node studio.js"
+  },
+  "keywords": [
+    "playwright",
+    "screen-recorder",
+    "video-generator",
+    "mockup",
+    "showcase",
+    "3d"
+  ],
+  "author": "",
+  "license": "MIT",
   "dependencies": {
     "playwright": "^1.64.1"
-  }
+  },
+  "files": [
+    "studio.js",
+    "README.md",
+    "package.json"
+  ]
 }

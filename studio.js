@@ -53,7 +53,11 @@ const checkFFmpeg = () => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   const urlInput = await ask(rl, `  ${clr.purple}URL ${clr.gray}(Enter for http://localhost:3000):${clr.reset} `);
-  const TARGET_URL = urlInput.trim() || 'http://localhost:3000';
+  let TARGET_URL = urlInput.trim() || 'http://localhost:3000';
+
+  if (TARGET_URL && !/^https?:\/\//i.test(TARGET_URL)) {
+    TARGET_URL = 'https://' + TARGET_URL;
+  }
 
   printUI();
   console.log(`  ${clr.neon}✔ Target:${clr.reset} ${clr.white}${TARGET_URL}${clr.reset}\n`);
